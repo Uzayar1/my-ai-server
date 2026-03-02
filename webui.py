@@ -1,40 +1,52 @@
 import gradio as gr
 import requests
-import json
 
+# AI အဖြေထုတ်ပေးမယ့်အပိုင်း
 def chat_with_ai(message, history):
     url = "http://localhost:11434/api/generate"
-    # AI ကို မြန်မာလိုပဲ အတင်းဖြေခိုင်းတဲ့ ရှယ် Instruction
+    # AI ကို မြန်မာလိုပဲ အပီအပြင်ဖြေဖို့ ခိုင်းထားတယ်
     payload = {
         "model": "qwen:0.5b",
-        "system": "You are a Myanmar AI. You MUST always reply in Myanmar (Burmese) language only. မင်းက မြန်မာ AI ဖြစ်တယ်၊ အမြဲတမ်း မြန်မာလိုပဲ ဖြေရမယ်။",
+        "system": "You are a helpful assistant. Always reply in Myanmar (Burmese) language clearly and politely.",
         "prompt": message,
-        "stream": False,
-        "options": {
-            "temperature": 0.7,
-            "num_predict": 150 # အဖြေမြန်အောင် စာလုံးရေ ကန့်သတ်ထားတယ်
-        }
+        "stream": False
     }
     
     try:
         response = requests.post(url, json=payload)
-        return response.json().get("response", "နားမလည်ပါဘူး။")
+        return response.json().get("response", "နားမလည်ပါဘူးခင်ဗျာ။")
     except:
-        return "Server Error: Ollama serve ကို နှိုးထားလား ပြန်စစ်ပါ သားကြီး!"
+        return "Server Error: Ollama serve ကို နှိုးထားပါ သားကြီး!"
 
-# Website Interface အလန်းစား (မနက်က UI ပုံစံမျိုး)
-with gr.Blocks(theme=gr.themes.Soft(primary_hue="orange", secondary_hue="blue")) as demo:
-    gr.Markdown("# 🇲🇲 Uzayar1's Professional AI Server")
-    gr.ChatInterface(
-        fn=chat_with_ai,
-        title="Myanmar Intelligence",
-        description="ကိုယ်ပိုင် Offline Server ကြီး ဖြစ်ပါတယ်။ အမြဲတမ်း မြန်မာလိုပဲ ပြန်ဖြေပေးမှာပါ။",
-        examples=["နေကောင်းလား?", "ဒီနေ့ ဘာသတင်းထူးလဲ?", "Python အကြောင်း ရှင်းပြပါ"],
-        cache_examples=False
-    )
+# ပုံထဲကလို ChatGPT Style Interface (Open WebUI Look)
+with gr.Blocks(theme=gr.themes.Default(primary_hue="blue", spacing_size="sm", radius_size="lg")) as demo:
+    with gr.Column(elem_id="container"):
+        gr.Markdown(f"# 🤖 Hello, Zayar Linn")
+        gr.Markdown("### How can I help you today?")
+        
+        chatbot = gr.Chatbot(label="Myanmar AI Chat", height=500, show_label=False)
+        
+        with gr.Row():
+            msg = gr.Textbox(
+                placeholder="Message Myanmar AI...",
+                show_label=False,
+                scale=9
+            )
+            submit = gr.Button("↑", variant="primary", scale=1)
+
+        # ဥပမာ မေးခွန်းလေးများ (Suggested Ideas)
+        with gr.Row():
+            gr.Examples(
+                examples=["Give me ideas", "Overcome procrastination", "Tell me a fun fact"],
+                inputs=msg,
+                label="Suggested"
+            )
+
+    # ခလုတ်နှိပ်ရင် အလုပ်လုပ်ဖို့ ချိတ်ဆက်ခြင်း
+    submit.click(chat_with_ai, [msg, chatbot], [chatbot])
+    msg.submit(chat_with_ai, [msg, chatbot], [chatbot])
 
 if __name__ == "__main__":
-    # Server ကို Port 3000 မှာ တရားဝင် ဖွင့်ပြီ
     demo.launch(server_name="0.0.0.0", server_port=3000)
 
 
