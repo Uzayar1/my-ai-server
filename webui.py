@@ -1,50 +1,53 @@
 import gradio as gr
 import requests
 
-# AI အဖြေထုတ်ပေးမယ့်အပိုင်း
 def chat_with_ai(message, history):
-    url = "http://localhost:11434/api/generate"
-    # AI ကို မြန်မာလိုပဲ အပီအပြင်ဖြေဖို့ ခိုင်းထားတယ်
+    url = "http://localhost:11434/api/chat" # Generate ကနေ Chat ကို ပြောင်းလိုက်တယ်
+    
+    # History ကို Ollama နားလည်တဲ့ Format ပြောင်းမယ်
+    formatted_history = []
+    # System Instruction ကို အမြဲထိပ်ကထားမယ်
+    formatted_history.append({"role": "system", "content": "You are a helpful assistant. Always reply in Myanmar (Burmese) language shortly."})
+    
+    # အရင်ပြောခဲ့တဲ့ စကားတွေကို ထည့်မယ်
+    for user_msg, bot_msg in history:
+        formatted_history.append({"role": "user", "content": user_msg})
+        formatted_history.append({"role": "assistant", "content": bot_msg})
+    
+    # အခုနောက်ဆုံးမေးတဲ့စကားကို ထည့်မယ်
+    formatted_history.append({"role": "user", "content": message})
+
     payload = {
-        "model": "qwen:0.5b",
-        "system": "You are a helpful assistant. Always reply in Myanmar (Burmese) language clearly and politely.",
-        "prompt": message,
-        "stream": False
+        "model": "qwen2.5:0.5b",
+        "messages": formatted_history,
+        "stream": False,
+        "options": {
+            "num_predict": 100,
+            "temperature": 0.5
+        }
     }
     
     try:
-        response = requests.post(url, json=payload)
-        return response.json().get("response", "နားမလည်ပါဘူးခင်ဗျာ။")
-    except:
-        return "Server Error: Ollama serve ကို နှိုးထားပါ သားကြီး!"
+        response = requests.post(url, json=payload, timeout=60)
+        return response.json().get("message", {}).get("content", "နားမလည်ပါဘူး။")
+    except Exception as e:
+        return "အဖြေထွက်ဖို့ ကြာနေတယ် သားကြီး၊ History တွေ များသွားလို့လား မသိဘူး။"
 
-# ပုံထဲကလို ChatGPT Style Interface (Open WebUI Look)
-with gr.Blocks(theme=gr.themes.Default(primary_hue="blue", spacing_size="sm", radius_size="lg")) as demo:
-    with gr.Column(elem_id="container"):
-        gr.Markdown(f"# 🤖 Hello, Zayar Linn")
-        gr.Markdown("### How can I help you today?")
-        
-        chatbot = gr.Chatbot(label="Myanmar AI Chat", height=500, show_label=False)
-        
-        with gr.Row():
-            msg = gr.Textbox(
-                placeholder="Message Myanmar AI...",
-                show_label=False,
-                scale=9
-            )
-            submit = gr.Button("↑", variant="primary", scale=1)
+with gr.Blocks() as demo:
+    gr.Markdown("# 🤖 Uzayar1's Memory AI")
+    chatbot = gr.Chatbot(height=450)
+    with gr.Row():
+        msg = gr.Textbox(placeholder="Message Myanmar AI...", show_label=False, scale=9)
+        submit = gr.Button("↑", variant="primary", scale=1)
 
-        # ဥပမာ မေးခွန်းလေးများ (Suggested Ideas)
-        with gr.Row():
-            gr.Examples(
-                examples=["Give me ideas", "Overcome procrastination", "Tell me a fun fact"],
-                inputs=msg,
-                label="Suggested"
-            )
+    def respond(message, chat_history):
+        # AI ဆီကို message ရော history ရော ပို့လိုက်ပြီ
+        bot_message = chat_with_ai(message, chat_history)
+        chat_history.append((message, bot_message))
+        return "", chat_history
 
-    # ခလုတ်နှိပ်ရင် အလုပ်လုပ်ဖို့ ချိတ်ဆက်ခြင်း
-    submit.click(chat_with_ai, [msg, chatbot], [chatbot])
-    msg.submit(chat_with_ai, [msg, chatbot], [chatbot])
+    submit.click(respond, [msg, chatbot], [msg, chatbot])
+    msg.submit(respond, [msg, chatbot], [msg, chatbot])
 
 if __name__ == "__main__":
     demo.launch(server_name="0.0.0.0", server_port=3000)
