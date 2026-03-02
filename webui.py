@@ -2,52 +2,44 @@ import gradio as gr
 import requests
 
 def chat_with_ai(message, history):
-    url = "http://localhost:11434/api/chat" # Generate ကနေ Chat ကို ပြောင်းလိုက်တယ်
+    url = "http://localhost:11434/api/chat"
     
-    # History ကို Ollama နားလည်တဲ့ Format ပြောင်းမယ်
-    formatted_history = []
-    # System Instruction ကို အမြဲထိပ်ကထားမယ်
-    formatted_history.append({"role": "system", "content": "You are a helpful assistant. Always reply in Myanmar (Burmese) language shortly."})
+    # Ollama အတွက် Message History ကို Format အမှန်ပြင်မယ်
+    formatted_messages = []
+    formatted_messages.append({"role": "system", "content": "You are a helpful assistant. Always reply in Myanmar (Burmese)."})
     
-    # အရင်ပြောခဲ့တဲ့ စကားတွေကို ထည့်မယ်
-    for user_msg, bot_msg in history:
-        formatted_history.append({"role": "user", "content": user_msg})
-        formatted_history.append({"role": "assistant", "content": bot_msg})
+    # Gradio 6.0 ရဲ့ history format ကို Ollama format ပြောင်းခြင်း
+    for msg in history:
+        # history ထဲက message တစ်ခုချင်းစီမှာ role နဲ့ content ပါရမယ်
+        formatted_messages.append({"role": msg['role'], "content": msg['content']})
     
-    # အခုနောက်ဆုံးမေးတဲ့စကားကို ထည့်မယ်
-    formatted_history.append({"role": "user", "content": message})
+    # အခုလက်ရှိမေးခွန်းကို ထည့်မယ်
+    formatted_messages.append({"role": "user", "content": message})
 
     payload = {
         "model": "qwen2.5:0.5b",
-        "messages": formatted_history,
+        "messages": formatted_messages,
         "stream": False,
-        "options": {
-            "num_predict": 100,
-            "temperature": 0.5
-        }
+        "options": {"num_predict": 100}
     }
     
     try:
         response = requests.post(url, json=payload, timeout=60)
-        return response.json().get("message", {}).get("content", "နားမလည်ပါဘူး။")
-    except Exception as e:
-        return "အဖြေထွက်ဖို့ ကြာနေတယ် သားကြီး၊ History တွေ များသွားလို့လား မသိဘူး။"
+        bot_response = response.json().get("message", {}).get("content", "နားမလည်ပါဘူး။")
+        return bot_response
+    except:
+        return "Server လေးနေတယ် သားကြီး၊ ခဏစောင့်ပေးပါ။"
 
+# Gradio 6.0 ရဲ့ ChatInterface ကို အသုံးပြုခြင်း
 with gr.Blocks() as demo:
-    gr.Markdown("# 🤖 Uzayar1's Memory AI")
-    chatbot = gr.Chatbot(height=450)
-    with gr.Row():
-        msg = gr.Textbox(placeholder="Message Myanmar AI...", show_label=False, scale=9)
-        submit = gr.Button("↑", variant="primary", scale=1)
-
-    def respond(message, chat_history):
-        # AI ဆီကို message ရော history ရော ပို့လိုက်ပြီ
-        bot_message = chat_with_ai(message, chat_history)
-        chat_history.append((message, bot_message))
-        return "", chat_history
-
-    submit.click(respond, [msg, chatbot], [msg, chatbot])
-    msg.submit(respond, [msg, chatbot], [msg, chatbot])
+    gr.Markdown("# 🤖 Uzayar1's Memory AI (Fixed)")
+    # type="messages" လို့ ထည့်ပေးမှ Gradio 6.0 မှာ Error မတက်မှာပါ
+    gr.ChatInterface(
+        fn=chat_with_ai,
+        type="messages", 
+        title="Myanmar AI Assistant",
+        description="စကားပြောမှတ်မိတဲ့ ကိုယ်ပိုင် AI Server ဖြစ်ပါတယ်။"
+    )
 
 if __name__ == "__main__":
     demo.launch(server_name="0.0.0.0", server_port=3000)
